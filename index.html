@@ -679,8 +679,54 @@ function loadFromLocalStorage() {
     return false;
 }
 
+// ─── Built-in data ───
+const BUILTIN_DATA = [
+{"name":"Абиратерон","ema":"Zytiga","url":"https://www.ema.europa.eu/en/medicines/human/EPAR/zytiga"},
+{"name":"Авегра Биокад (бевацизумаб)","ema":"Avastin","url":"https://www.ema.europa.eu/en/medicines/human/EPAR/avastin"},
+{"name":"Авомит (гранисетрон)","ema":"Kytril","url":"https://www.ema.europa.eu/en/medicines/human/referrals/kytril"},
+{"name":"Алвида (эверолимус)","ema":"Afinitor","url":"https://www.ema.europa.eu/en/medicines/human/EPAR/afinitor"},
+{"name":"Анастрозол","ema":"Arimidex","url":"https://www.ema.europa.eu/en/medicines/human/referrals/arimidex"},
+{"name":"Ацверис (экулизумаб) орфаный","ema":"Soliris","url":"https://www.ema.europa.eu/en/medicines/human/EPAR/soliris"},
+{"name":"Ацеллбия (ритуксимаб)","ema":"MabThera","url":"https://www.ema.europa.eu/en/medicines/human/EPAR/mabthera"},
+{"name":"Бортезомиб","ema":"Velcade","url":"https://www.ema.europa.eu/en/medicines/human/EPAR/velcade"},
+{"name":"Валкира (гефитиниб)","ema":"Iressa","url":"https://www.ema.europa.eu/en/medicines/human/EPAR/iressa"},
+{"name":"Вориконазол","ema":"Vfend","url":"https://www.ema.europa.eu/en/medicines/human/EPAR/vfend"},
+{"name":"Гемцитар (гемцитабин)","ema":"Gemzar","url":"https://www.ema.europa.eu/en/medicines/human/referrals/gemzar"},
+{"name":"Гертикад (трастузумаб)","ema":"Herceptin","url":"https://www.ema.europa.eu/en/medicines/human/EPAR/herceptin"},
+{"name":"Далибра (адалимумаб)","ema":"Humira","url":"https://www.ema.europa.eu/en/medicines/human/EPAR/humira"},
+{"name":"Даратумиа (даратумумаб)","ema":"Darzalex","url":"https://www.ema.europa.eu/en/medicines/human/EPAR/darzalex"},
+{"name":"Дарбэстим (Дарбэпоэтин альфа)","ema":"Aranesp","url":"https://www.ema.europa.eu/en/medicines/human/EPAR/aranesp"},
+{"name":"Золерикс (золдреновая к-та)","ema":"Zometa","url":"https://www.ema.europa.eu/en/medicines/human/EPAR/zometa"},
+{"name":"Инфликсимаб","ema":"Remicade","url":"https://www.ema.europa.eu/en/medicines/human/EPAR/remicade"},
+{"name":"Интерферон бета-1b","ema":"Betaferon","url":"https://www.ema.europa.eu/en/medicines/human/EPAR/betaferon"},
+{"name":"Капецитабин","ema":"Xeloda","url":"https://www.ema.europa.eu/en/medicines/human/EPAR/xeloda"},
+{"name":"Ленватикад (Ленватиниб)","ema":"Lenvima","url":"https://www.ema.europa.eu/en/medicines/human/EPAR/lenvima"},
+{"name":"Нивокад (Ниволумаб)","ema":"Opdivo","url":"https://www.ema.europa.eu/en/medicines/human/EPAR/opdivo"},
+{"name":"Новотакс 20 (доцетаксел)","ema":"Taxotere","url":"https://www.ema.europa.eu/en/medicines/human/EPAR/taxotere"},
+{"name":"Нусилара (нусунерсен)","ema":"Spinraza","url":"https://www.ema.europa.eu/en/medicines/human/EPAR/spinraza"},
+{"name":"Пемброриа (пембролизумаб)","ema":"Keytruda","url":"https://www.ema.europa.eu/en/medicines/human/EPAR/keytruda"},
+{"name":"Пеметрексед","ema":"Alimta","url":"https://www.ema.europa.eu/en/medicines/human/EPAR/alimta"},
+{"name":"Пертувиа (пертузумаб)","ema":"Perjeta","url":"https://www.ema.europa.eu/en/medicines/human/EPAR/perjeta"},
+{"name":"Рисдиплам","ema":"Evrysdi","url":"https://www.ema.europa.eu/en/medicines/human/EPAR/evrysdi"},
+{"name":"Руксолика (Руксолитиниб орфан)","ema":"Jakavi","url":"https://www.ema.europa.eu/en/medicines/human/EPAR/jakavi"},
+{"name":"Рупсулимид (леналидомид)","ema":"Revlimid","url":"https://www.ema.europa.eu/en/medicines/human/EPAR/revlimid"},
+{"name":"Тебериф (интерферон бета-1а)","ema":"Rebif","url":"https://www.ema.europa.eu/en/medicines/human/EPAR/rebif"},
+{"name":"Темозоломид","ema":"Temodal","url":"https://www.ema.europa.eu/en/medicines/human/EPAR/temodal"},
+{"name":"Терифлуномид","ema":"Aubagio","url":"https://www.ema.europa.eu/en/medicines/human/EPAR/aubagio"},
+{"name":"Фазотикад (фулвестрант)","ema":"Faslodex","url":"https://www.ema.europa.eu/en/medicines/human/EPAR/faslodex"},
+{"name":"Финголимод","ema":"Gilenya","url":"https://www.ema.europa.eu/en/medicines/human/EPAR/gilenya"},
+{"name":"Трастузумаб дерукстекан","ema":"Enhertu","url":"https://www.ema.europa.eu/en/medicines/human/EPAR/enhertu"}
+];
+
 // ─── Init ───
-loadFromLocalStorage();
+if (!loadFromLocalStorage()) {
+    tableData = BUILTIN_DATA.map(d => ({
+        name: d.name, ema: d.ema, rmp: '', url: d.url,
+        status: 'pending', source: '', error: ''
+    }));
+    fileName = 'ForCursor.xlsx';
+    showMainSection();
+}
 </script>
 </body>
 </html>
