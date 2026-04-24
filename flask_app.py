@@ -9,7 +9,8 @@ from html.parser import HTMLParser
 
 from flask import Flask, jsonify, request, send_from_directory
 
-app = Flask(__name__, static_folder=".", static_url_path="")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+app = Flask(__name__, static_folder=BASE_DIR, static_url_path="")
 
 EMA_HEADERS = {
     "User-Agent": (
@@ -141,7 +142,7 @@ def fetch_rmp_date(url: str) -> dict:
 
 @app.route("/")
 def index():
-    return send_from_directory(".", "index.html")
+    return send_from_directory(BASE_DIR, "index.html")
 
 
 @app.route("/api/fetch-rmp", methods=["POST"])
