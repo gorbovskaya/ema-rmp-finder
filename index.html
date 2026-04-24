@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EMA RMP Date Finder</title>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --primary: #003399;
+            --primary-light: #1a5cc8;
+            --primary-bg: #e8f0fe;
+            --success: #1e8e3e;
+            --success-bg: #e6f4ea;
+            --error: #d93025;
+            --error-bg: #fce8e6;
+            --na: #80868b;
+            --na-bg: #f1f3f4;
+            --warn: #e37400;
+            --bg: #f8f9fa;
+            --surface: #ffffff;
+            --border: #dadce0;
+            --text: #202124;
+            --text-secondary: #5f6368;
+            --radius: 8px;
+            --shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08);
+            --shadow-lg: 0 4px 16px rgba(0,0,0,0.12);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            color: white;
+            padding: 24px 32px;
+            box-shadow: var(--shadow-lg);
+        }
+        .header h1 { font-size: 22px; font-weight: 600; }
+        .header p { font-size: 13px; opacity: 0.85; margin-top: 4px; }
+
+        .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+
+        /* Upload area */
+        .upload-area {
+            background: var(--surface);
+            border: 2px dashed var(--border);
+            border-radius: var(--radius);
+            padding: 48px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 20px;
+        }
+        .upload-area:hover, .upload-area.dragover {
+            border-color: var(--primary);
+            background: var(--primary-bg);
+        }
+        .upload-area .icon { font-size: 48px; margin-bottom: 12px; }
+        .upload-area .title { font-size: 16px; font-weight: 600; color: var(--text); }
+        .upload-area .subtitle { font-size: 13px; color: var(--text-secondary); margin-top: 6px; }
+        .upload-area input { display: none; }
+
+        /* Toolbar */
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+        .toolbar .file-info {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-right: auto;
+        }
+        .toolbar .file-info strong { color: var(--text); }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 18px;
+            border: none;
+            border-radius: var(--radius);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s;
+            font-family: inherit;
+        }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+        .btn-primary:hover:not(:disabled) { background: var(--primary-light); }
+        .btn-secondary {
+            background: var(--surface);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+        .btn-secondary:hover:not(:disabled) { background: var(--bg); }
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+        .btn-success:hover:not(:disabled) { background: #1a7c36; }
+
+        /* Progress */
+        .progress-wrap {
+            background: var(--surface);
+            border-radius: var(--radius);
+            padding: 14px 20px;
+            margin-bottom: 16px;
+            box-shadow: var(--shadow);
+            display: none;
+        }
+        .progress-wrap.active { display: block; }
+        .progress-info {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+        .progress-bar-outer {
+            height: 6px;
+            background: var(--bg);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .progress-bar-inner {
+            height: 100%;
+            background: var(--primary);
+            border-radius: 3px;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
+        /* Stats */
+        .stats {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+        .stat-card {
+            background: var(--surface);
+            border-radius: var(--radius);
+            padding: 12px 20px;
+            box-shadow: var(--shadow);
+            min-width: 120px;
+            display: none;
+        }
+        .stat-card.visible { display: block; }
+        .stat-card .label { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+        .stat-card .value { font-size: 24px; font-weight: 700; margin-top: 2px; }
+        .stat-card.ok .value { color: var(--success); }
+        .stat-card.na .value { color: var(--na); }
+        .stat-card.err .value { color: var(--error); }
+        .stat-card.total .value { color: var(--text); }
+
+        /* Table */
+        .table-wrap {
+            background: var(--surface);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        thead th {
+            background: var(--primary);
+            color: white;
+            padding: 10px 14px;
+            text-align: left;
+            font-weight: 600;
+            white-space: nowrap;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+        thead th:first-child { border-radius: var(--radius) 0 0 0; }
+        thead th:last-child { border-radius: 0 var(--radius) 0 0; }
+
+        tbody td {
+            padding: 9px 14px;
+            border-bottom: 1px solid var(--border);
+            vertical-align: middle;
+        }
+        tbody tr:last-child td { border-bottom: none; }
+        tbody tr:hover { background: #f5f7fa; }
+
+        td.col-num { text-align: center; color: var(--text-secondary); width: 40px; }
+        td.col-date { font-weight: 600; white-space: nowrap; }
+        td.col-date.ok { color: var(--success); }
+        td.col-date.na { color: var(--na); }
+        td.col-date.err { color: var(--error); }
+        td.col-date.pending { color: var(--text-secondary); }
+
+        td.col-link a {
+            color: var(--primary);
+            text-decoration: none;
+            font-size: 12px;
+            word-break: break-all;
+        }
+        td.col-link a:hover { text-decoration: underline; }
+
+        td.col-status { text-align: center; width: 40px; font-size: 16px; }
+
+        .spinner {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .badge-source {
+            background: var(--primary-bg);
+            color: var(--primary);
+        }
+        .badge-na {
+            background: var(--na-bg);
+            color: var(--na);
+        }
+
+        /* Empty state */
+        .empty-table {
+            padding: 48px;
+            text-align: center;
+            color: var(--text-secondary);
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 24px;
+            padding-bottom: 16px;
+        }
+        .footer a { color: var(--primary); text-decoration: none; }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container { padding: 12px; }
+            .header { padding: 16px; }
+            .upload-area { padding: 32px 16px; }
+            .toolbar { gap: 6px; }
+            .btn { padding: 7px 12px; font-size: 12px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>&#128138; EMA RMP Date Finder</h1>
+    <p>Отслеживание дат Risk Management Plan с сайта European Medicines Agency</p>
+</div>
+
+<div class="container">
+
+    <!-- Upload area (shown when no data) -->
+    <div id="upload-section">
+        <div class="upload-area" id="drop-zone">
+            <div class="icon">&#128196;</div>
+            <div class="title">Загрузите Excel-файл</div>
+            <div class="subtitle">Перетащите файл сюда или нажмите для выбора<br>Формат: .xlsx с 4 столбцами (Наименование, EMA/FDA, RMP дата, Ссылка)</div>
+            <input type="file" id="file-input" accept=".xlsx,.xls">
+        </div>
+    </div>
+
+    <!-- Main content (shown after data is loaded) -->
+    <div id="main-section" style="display: none;">
+
+        <div class="toolbar">
+            <span class="file-info" id="file-info"></span>
+            <button class="btn btn-secondary" id="btn-upload" title="Загрузить другой файл">&#128194; Файл</button>
+            <button class="btn btn-primary" id="btn-refresh" title="Обновить даты RMP с сайта EMA">&#128260; Обновить</button>
+            <button class="btn btn-success" id="btn-download" title="Скачать таблицу с обновлёнными датами">&#128229; Скачать Excel</button>
+        </div>
+
+        <div class="progress-wrap" id="progress-wrap">
+            <div class="progress-info">
+                <span id="progress-text">Обработка...</span>
+                <span id="progress-pct">0%</span>
+            </div>
+            <div class="progress-bar-outer">
+                <div class="progress-bar-inner" id="progress-bar"></div>
+            </div>
+        </div>
+
+        <div class="stats" id="stats">
+            <div class="stat-card total" id="stat-total"><div class="label">Всего</div><div class="value" id="stat-total-val">0</div></div>
+            <div class="stat-card ok" id="stat-ok"><div class="label">Найдено</div><div class="value" id="stat-ok-val">0</div></div>
+            <div class="stat-card na" id="stat-na"><div class="label">Нет RMP</div><div class="value" id="stat-na-val">0</div></div>
+            <div class="stat-card err" id="stat-err"><div class="label">Ошибки</div><div class="value" id="stat-err-val">0</div></div>
+        </div>
+
+        <div class="table-wrap">
+            <table id="data-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Наименование препарата</th>
+                        <th>Наименование EMA/FDA</th>
+                        <th>RMP (дата версии)</th>
+                        <th>Ссылка EMA</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="table-body"></tbody>
+            </table>
+        </div>
+
+    </div>
+
+    <div class="footer">
+        Данные извлекаются со страниц <a href="https://www.ema.europa.eu" target="_blank">ema.europa.eu</a>.
+        Приложение ищет секцию «Risk management plan» и дату «Last updated» (или «First published»).
+    </div>
+</div>
+
+<script>
+const API_URL = '/api/fetch-rmp';
+
+let tableData = [];
+let fileName = '';
+
+// ─── DOM refs ───
+const uploadSection  = document.getElementById('upload-section');
+const mainSection    = document.getElementById('main-section');
+const dropZone       = document.getElementById('drop-zone');
+const fileInput      = document.getElementById('file-input');
+const fileInfo       = document.getElementById('file-info');
+const btnUpload      = document.getElementById('btn-upload');
+const btnRefresh     = document.getElementById('btn-refresh');
+const btnDownload    = document.getElementById('btn-download');
+const progressWrap   = document.getElementById('progress-wrap');
+const progressText   = document.getElementById('progress-text');
+const progressPct    = document.getElementById('progress-pct');
+const progressBar    = document.getElementById('progress-bar');
+const tableBody      = document.getElementById('table-body');
+
+// ─── Upload handling ───
+dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+    if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', () => { if (fileInput.files.length) handleFile(fileInput.files[0]); });
+
+btnUpload.addEventListener('click', () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.xlsx,.xls';
+    input.onchange = () => { if (input.files.length) handleFile(input.files[0]); };
+    input.click();
+});
+
+function handleFile(file) {
+    fileName = file.name;
+    const reader = new FileReader();
+    reader.onload = e => {
+        try {
+            const wb = XLSX.read(e.target.result, { type: 'array' });
+            const ws = wb.Sheets[wb.SheetNames[0]];
+            parseWorksheet(ws);
+            showMainSection();
+        } catch (err) {
+            alert('Ошибка чтения файла: ' + err.message);
+        }
+    };
+    reader.readAsArrayBuffer(file);
+}
+
+function getCellValue(ws, r, c) {
+    const addr = XLSX.utils.encode_cell({ r, c });
+    const cell = ws[addr];
+    if (!cell) return '';
+    return cell.v != null ? String(cell.v) : '';
+}
+
+function getCellUrl(ws, r, c) {
+    const addr = XLSX.utils.encode_cell({ r, c });
+    const cell = ws[addr];
+    if (!cell) return '';
+    if (cell.l && cell.l.Target) return cell.l.Target;
+    const val = cell.v != null ? String(cell.v) : '';
+    if (val.startsWith('http')) return val;
+    return '';
+}
+
+function parseWorksheet(ws) {
+    const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+    const maxRow = range.e.r;
+    const maxCol = range.e.c;
+
+    const headers = [];
+    for (let c = 0; c <= maxCol; c++) headers.push(getCellValue(ws, 0, c).toLowerCase().trim());
+
+    let nameCol = 0, emaCol = 1, rmpCol = 2, urlCol = 3;
+
+    for (let c = 0; c <= maxCol; c++) {
+        const h = headers[c];
+        if ((h.includes('наименование') || h.includes('препарат')) && !h.includes('ema') && !h.includes('fda')) nameCol = c;
+        if (h.includes('ema') || h.includes('fda')) emaCol = c;
+        if (h.includes('rmp') || h.includes('дата версии')) rmpCol = c;
+        if (h.includes('ссылк') || h.includes('link') || h.includes('url')) urlCol = c;
+    }
+
+    tableData = [];
+    for (let r = 1; r <= maxRow; r++) {
+        const name = getCellValue(ws, r, nameCol);
+        const ema  = getCellValue(ws, r, emaCol);
+        const rmp  = getCellValue(ws, r, rmpCol);
+        const url  = getCellUrl(ws, r, urlCol);
+        if (!name && !ema && !url) continue;
+        tableData.push({
+            name,
+            ema,
+            rmp: rmp || '',
+            url,
+            status: rmp ? 'loaded' : 'pending',
+            source: '',
+            error: '',
+        });
+    }
+}
+
+// ─── Render ───
+function showMainSection() {
+    uploadSection.style.display = 'none';
+    mainSection.style.display = 'block';
+    fileInfo.innerHTML = '<strong>' + escHtml(fileName) + '</strong> &mdash; ' + tableData.length + ' препаратов';
+    renderTable();
+    updateStats();
+    saveToLocalStorage();
+}
+
+function renderTable() {
+    tableBody.innerHTML = '';
+    tableData.forEach((row, i) => {
+        const tr = document.createElement('tr');
+
+        const statusIcon = getStatusIcon(row.status);
+        const dateClass = getDateClass(row.status);
+        const linkShort = row.url ? new URL(row.url).pathname.split('/').pop() : '';
+        const sourceHtml = row.source ? ' <span class="badge badge-source">' + escHtml(row.source) + '</span>' : '';
+
+        tr.innerHTML =
+            '<td class="col-num">' + (i + 1) + '</td>' +
+            '<td>' + escHtml(row.name) + '</td>' +
+            '<td>' + escHtml(row.ema) + '</td>' +
+            '<td class="col-date ' + dateClass + '" id="date-' + i + '">' +
+                escHtml(row.rmp || (row.status === 'pending' ? '—' : '')) +
+                sourceHtml +
+            '</td>' +
+            '<td class="col-link">' + (row.url ? '<a href="' + escHtml(row.url) + '" target="_blank" title="' + escHtml(row.url) + '">' + escHtml(linkShort) + '</a>' : '') + '</td>' +
+            '<td class="col-status" id="status-' + i + '">' + statusIcon + '</td>';
+
+        tableBody.appendChild(tr);
+    });
+}
+
+function getStatusIcon(status) {
+    switch (status) {
+        case 'ok':       return '&#9989;';
+        case 'na':       return '&#10134;';
+        case 'error':    return '&#10060;';
+        case 'loading':  return '<span class="spinner"></span>';
+        case 'loaded':   return '&#9898;';
+        default:         return '';
+    }
+}
+
+function getDateClass(status) {
+    switch (status) {
+        case 'ok':      return 'ok';
+        case 'na':      return 'na';
+        case 'error':   return 'err';
+        case 'loading': return 'pending';
+        default:        return '';
+    }
+}
+
+function escHtml(str) {
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+}
+
+function updateStats() {
+    const total = tableData.length;
+    const ok  = tableData.filter(r => r.status === 'ok').length;
+    const na  = tableData.filter(r => r.status === 'na').length;
+    const err = tableData.filter(r => r.status === 'error').length;
+
+    document.getElementById('stat-total-val').textContent = total;
+    document.getElementById('stat-ok-val').textContent = ok;
+    document.getElementById('stat-na-val').textContent = na;
+    document.getElementById('stat-err-val').textContent = err;
+
+    document.getElementById('stat-total').classList.add('visible');
+    if (ok)  document.getElementById('stat-ok').classList.add('visible');
+    if (na)  document.getElementById('stat-na').classList.add('visible');
+    if (err) document.getElementById('stat-err').classList.add('visible');
+}
+
+// ─── Refresh ───
+btnRefresh.addEventListener('click', startRefresh);
+
+async function startRefresh() {
+    btnRefresh.disabled = true;
+    btnDownload.disabled = true;
+    btnUpload.disabled = true;
+    progressWrap.classList.add('active');
+
+    const total = tableData.length;
+
+    for (let i = 0; i < total; i++) {
+        const row = tableData[i];
+        if (!row.url) {
+            row.status = 'na';
+            row.rmp = 'NA';
+            row.error = 'Нет ссылки';
+            updateRow(i);
+            updateProgress(i + 1, total, row.ema || row.name);
+            continue;
+        }
+
+        row.status = 'loading';
+        updateRow(i);
+        updateProgress(i, total, row.ema || row.name);
+
+        try {
+            const resp = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: row.url }),
+            });
+
+            if (!resp.ok) throw new Error('Сервер вернул ошибку ' + resp.status);
+
+            const data = await resp.json();
+
+            if (data.date_str) {
+                row.rmp = formatDate(data.date_str);
+                row.status = 'ok';
+                row.source = data.last_updated ? 'Last updated' : 'First published';
+                row.error = '';
+            } else if (data.error && data.error.includes('Ошибка загрузки')) {
+                row.rmp = 'NA';
+                row.status = 'error';
+                row.error = data.error;
+                row.source = '';
+            } else {
+                row.rmp = 'NA';
+                row.status = 'na';
+                row.error = data.error || 'RMP не найден';
+                row.source = '';
+            }
+        } catch (err) {
+            row.rmp = 'NA';
+            row.status = 'error';
+            row.error = err.message;
+            row.source = '';
+        }
+
+        updateRow(i);
+        updateProgress(i + 1, total, row.ema || row.name);
+    }
+
+    progressText.textContent = 'Готово!';
+    progressPct.textContent = '100%';
+    progressBar.style.width = '100%';
+
+    btnRefresh.disabled = false;
+    btnDownload.disabled = false;
+    btnUpload.disabled = false;
+
+    updateStats();
+    saveToLocalStorage();
+
+    setTimeout(() => { progressWrap.classList.remove('active'); }, 3000);
+}
+
+function updateRow(i) {
+    const row = tableData[i];
+    const dateCell   = document.getElementById('date-' + i);
+    const statusCell = document.getElementById('status-' + i);
+    if (!dateCell || !statusCell) return;
+
+    const sourceHtml = row.source ? ' <span class="badge badge-source">' + escHtml(row.source) + '</span>' : '';
+    const errorHtml  = row.error  ? ' <span title="' + escHtml(row.error) + '">&#9432;</span>' : '';
+
+    dateCell.className = 'col-date ' + getDateClass(row.status);
+    dateCell.innerHTML = escHtml(row.rmp || '—') + sourceHtml + errorHtml;
+    statusCell.innerHTML = getStatusIcon(row.status);
+}
+
+function updateProgress(current, total, name) {
+    const pct = Math.round((current / total) * 100);
+    progressText.textContent = current + '/' + total + ': ' + name;
+    progressPct.textContent = pct + '%';
+    progressBar.style.width = pct + '%';
+}
+
+function formatDate(dateStr) {
+    if (!dateStr) return '';
+    const parts = dateStr.split('/');
+    if (parts.length === 3) return parts[0] + '.' + parts[1] + '.' + parts[2];
+    return dateStr;
+}
+
+// ─── Download ───
+btnDownload.addEventListener('click', downloadExcel);
+
+function downloadExcel() {
+    const wsData = [['Наименование препарата', 'Наименование на сайте EMA/FDA', 'RMP (дата версии)', 'Ссылка на страницу EMA']];
+
+    tableData.forEach(row => {
+        wsData.push([row.name, row.ema, row.rmp, row.url]);
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+    ws['!cols'] = [{ wch: 30 }, { wch: 25 }, { wch: 18 }, { wch: 60 }];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'RMP Dates');
+
+    const outName = fileName ? fileName.replace(/\.xlsx?$/i, '') + '_RMP.xlsx' : 'RMP_Dates.xlsx';
+    XLSX.writeFile(wb, outName);
+}
+
+// ─── LocalStorage persistence ───
+function saveToLocalStorage() {
+    try {
+        localStorage.setItem('rmp_data', JSON.stringify({ tableData, fileName }));
+    } catch (_) {}
+}
+
+function loadFromLocalStorage() {
+    try {
+        const saved = JSON.parse(localStorage.getItem('rmp_data'));
+        if (saved && saved.tableData && saved.tableData.length) {
+            tableData = saved.tableData;
+            fileName  = saved.fileName || 'Сохранённые данные';
+            showMainSection();
+            return true;
+        }
+    } catch (_) {}
+    return false;
+}
+
+// ─── Init ───
+loadFromLocalStorage();
+</script>
+</body>
+</html>
